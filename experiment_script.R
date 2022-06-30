@@ -22,7 +22,7 @@ my_theme <- function() {
 item_no <- 1:40 # numerical identifiers for each item
 upper_lim <- rep_len(seq(from = 500, to = 950, by = 50), length.out = 40) # true upper limit for the data
 prop <- rep_len(c(.1, .15, .2), length.out = 40) # the proportion of the upper limit that should be used as the mean when generating data
-graph_data <- tibble(item_no, upper_lim, prop, gap) # combine the above vectors into a dataframe
+graph_data <- tibble(item_no, upper_lim, prop) # combine the above vectors into a dataframe
 
 # read in scenarios.csv file
 scenarios <- read_csv("scenarios.csv")
