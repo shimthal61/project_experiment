@@ -7,14 +7,14 @@ dir.create("graphs")
 # create custom ggplot theme
 my_theme <- function() {
   theme_minimal() + # use minimal theme as a starting point
-    theme(aspect.ratio = 5/6, # use a 5/6 aspect ratio
+    theme(aspect.ratio = 5 / 6, # use a 5/6 aspect ratio
           panel.grid.minor = element_blank(), # remove all minor gridlines
           panel.grid.major.x = element_blank(), # remove remaining vertical gridlines
           panel.grid.major.y = element_line(colour = "lightgrey"), # use light grey colour for remaining horizontal gridlines
           axis.ticks.y = element_blank(), # remove tick marks on y axis
           axis.text.y = element_text(size = 10), # set text size for text on y axis
           axis.text.x = element_text(size = 10), # set text size for text on x axis
-          plot.background = element_rect(fill = 'white', colour = "white"), # colour = plot border colour
+          plot.background = element_rect(fill = "white", colour = "white"), # colour = plot border colour
           plot.margin = margin(0.5, 0.5, 0.5, 0.5, "cm")) # margins around the plotting area
 }
 
@@ -25,7 +25,7 @@ prop <- rep_len(c(.1, .15, .2), length.out = 40) # the proportion of the upper l
 graph_data <- tibble(item_no, upper_lim, prop) # combine the above vectors into a dataframe
 
 # read in scenarios.csv file
-scenarios <- read_csv("scenarios.csv")
+scenarios <- read_csv("new_scenarios.csv")
 
 # join graph_data with scenarios dataframe, by item number
 graph_data <- graph_data %>%
@@ -43,6 +43,7 @@ make_plots <- function(this_row) {
   upper_lim <- this_row %>% pull(upper_lim)
   prop <- this_row %>% pull(prop)
   seed_no <- this_row %>% pull(seed_no)
+  variable <- this_row  %>% pull(variable)
   
   # generate a value for each x-axis category
   set.seed(seed_no) # use the seed number for this scenario
@@ -50,7 +51,7 @@ make_plots <- function(this_row) {
                   mean = upper_lim*prop, # sampling mean: proportion of the upper limit
                   sd = upper_lim/100) # sampling standard deviation: 
   # identify the highest value
-  max_value <- max(mydata)
+# max_value <- max(mydata)
   
   # create df - a tibble with one column for x-axis values and another for y-axis values
   df <- tibble(xlabs, mydata) %>%
@@ -61,7 +62,7 @@ make_plots <- function(this_row) {
     ggplot(aes(x = xlabs, # x-axis variable
                y = mydata)) + # y-axis variable
     geom_col() + # for a bar chart
-    labs(x = "Variable", # x-axis label
+    labs(x = variable, # x-axis label
          y = "Number") + # y-axis label
     scale_y_continuous(limits = c(0, upper_lim), # y axis range: between 0 and upper_lim
                        expand = expansion(mult = c(0, 0))) + # use the exact limits - don't extend limits with expansion factor
@@ -82,13 +83,20 @@ make_plots <- function(this_row) {
     ggplot(aes(x = xlabs, # x-axis variable
                y = mydata)) + # y-axis variable
     geom_col() + # for a bar chart
-    labs(x = "Variable", # x-axis label
+    labs(x = variable, # x-axis label
          y = "Number") + # y-axis label
     scale_y_continuous(expand = expansion(mult = c(0, .05))) + # don't extend lower limit with expansion factor, but use default expansion factor for the upper limit
     # see default expansion value here: ggplot2:::default_expansion
     my_theme() + # add custom theme created earlier
     geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
+  
+  # extract truncated limit from graph
+
+  # For second question
+  #if (max_value > truncated_limit) {
+    #print("help!")
+  }
   
   # save the truncated graph
   trunc_graph %>%
