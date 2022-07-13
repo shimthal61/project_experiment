@@ -96,7 +96,6 @@ make_plots <- function(this_row) {
   # For second question
   #if (max_value > truncated_limit) {
     #print("help!")
-  }
   
   # save the truncated graph
   trunc_graph %>%
@@ -106,7 +105,7 @@ make_plots <- function(this_row) {
            units = "cm", # units for width and height
            dpi = 600) # dots per inch
   
-}
+  }
 
 # apply the make_plots function to each row of graph_data
 lapply(1:nrow(graph_data), function(i) make_plots(slice(graph_data, i)))
