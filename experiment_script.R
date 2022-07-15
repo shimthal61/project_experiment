@@ -52,7 +52,7 @@ make_plots <- function(this_row) {
                   sd = upper_lim/100) # sampling standard deviation: 
   
   # Find max value for each graph
-  max_value <<- max(mydata)
+  max_value <- max(mydata)
 
   # create df - a tibble with one column for x-axis values and another for y-axis values
   df <- tibble(xlabs, mydata) %>%
@@ -80,7 +80,7 @@ make_plots <- function(this_row) {
            dpi = 600) # dots per inch
 
   # create the truncated graph
-  trunc_graph <<- df %>%
+  trunc_graph <- df %>%
     ggplot(aes(x = xlabs, # x-axis variable
                y = mydata)) + # y-axis variable
     geom_col() + # for a bar chart
@@ -91,7 +91,19 @@ make_plots <- function(this_row) {
     my_theme() + # add custom theme created earlier
     geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
+
+
+  # Check to see if highest labelled gridline is higher than max value:
+
   
+  trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks,na.rm=TRUE)
+  
+  if (max_value <= trunc_max_break) {
+    cat("Problem with", item_no)
+  } else {
+      cat("All good with", item_no)
+  }
+
   # save the truncated graph
   trunc_graph %>%
     ggsave(filename = paste0("graphs/E", item_no, "trunc.png"), # save inside the 'graphs' folder, a
@@ -99,17 +111,6 @@ make_plots <- function(this_row) {
            height = 5, # height value
            units = "cm", # units for width and height
            dpi = 600) # dots per inch
-
-  # Check to see if highest labelled gridline is below highest value
-  trunc_upper_lim <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks
-  if (max_value <= trunc_upper_lim) {
-    print("Problem!")
-  }
-
-  #if (upper_lim >= max_value) {
-    #print(filename + "Problem!")
-  #}
-  
   }
 
 
@@ -125,7 +126,4 @@ tibble(item_no, # use the list of item numbers created previously
   mutate(sentence1 = str_replace_all(sentence1, " y ", paste0(" ", upper_lim, " "))) %>% # replace 'y' placeholder with actual value
   write_csv("list1.csv") # write this dataframe to a .csv file
 
-# Check to see if highest labelled gridline is below highest value
-  #ggplot_build(trunc_graph)$data[[1]]$ymax #This is already set as 'max_value'
-  #trunc_upper_lim <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks
-  #max(trunc_upper_lim)
+
