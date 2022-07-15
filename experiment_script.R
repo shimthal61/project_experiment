@@ -50,9 +50,10 @@ make_plots <- function(this_row) {
   mydata <- rnorm(n = length(xlabs), # number of x-axis categories
                   mean = upper_lim*prop, # sampling mean: proportion of the upper limit
                   sd = upper_lim/100) # sampling standard deviation: 
-  # identify the highest value
-# max_value <- max(mydata)
   
+  # Find max value for each graph
+  max_value <- max(mydata)
+
   # create df - a tibble with one column for x-axis values and another for y-axis values
   df <- tibble(xlabs, mydata) %>%
     mutate(across(xlabs, as.character)) # treat the x-axis values as characters
@@ -77,7 +78,7 @@ make_plots <- function(this_row) {
            height = 5, # height value
            units = "cm", # units for width and height
            dpi = 600) # dots per inch
-  
+
   # create the truncated graph
   trunc_graph <- df %>%
     ggplot(aes(x = xlabs, # x-axis variable
@@ -90,12 +91,14 @@ make_plots <- function(this_row) {
     my_theme() + # add custom theme created earlier
     geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
-  
-  # extract truncated limit from graph
 
-  # For second question
-  #if (max_value > truncated_limit) {
-    #print("help!")
+  
+  
+
+# Check to see if highest labelled gridline is below highest value
+  #if (upper_lim >= max_value) {
+    #print("Problem!")
+  #}
   
   # save the truncated graph
   trunc_graph %>%
@@ -106,6 +109,8 @@ make_plots <- function(this_row) {
            dpi = 600) # dots per inch
   
   }
+
+
 
 # apply the make_plots function to each row of graph_data
 lapply(1:nrow(graph_data), function(i) make_plots(slice(graph_data, i)))
