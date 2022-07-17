@@ -99,9 +99,9 @@ make_plots <- function(this_row) {
   trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks,na.rm=TRUE)
   
   if (max_value <= trunc_max_break) {
-    cat("Problem with", item_no)
+    cat("Problem with", item_no, "     ")
   } else {
-      cat("All good with", item_no)
+      cat("All good with", item_no, "     ")
   }
 
   # save the truncated graph
