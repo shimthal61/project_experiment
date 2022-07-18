@@ -25,7 +25,7 @@ prop <- rep_len(c(.1, .15, .2), length.out = 40) # the proportion of the upper l
 graph_data <- tibble(item_no, upper_lim, prop) # combine the above vectors into a dataframe
 
 # read in scenarios.csv file
-scenarios <- read_csv("new_scenarios.csv")
+scenarios <- read_csv("new_scenarios_1.csv")
 
 # join graph_data with scenarios dataframe, by item number
 graph_data <- graph_data %>%
@@ -55,7 +55,7 @@ make_plots <- function(this_row) {
   max_value <- max(mydata)
 
   # create df - a tibble with one column for x-axis values and another for y-axis values
-  df <- tibble(xlabs, mydata) %>%
+  df <- tibble(xlabs, mydata, variable) %>%
     mutate(across(xlabs, as.character)) # treat the x-axis values as characters
   
   # create full (non-truncated) graph
@@ -95,13 +95,37 @@ make_plots <- function(this_row) {
 
   # Check to see if highest labelled gridline is higher than max value:
 
+  # max_value <- max(mydata) # Find max value for each graph
+  # trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks,na.rm=TRUE)
   
-  trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks,na.rm=TRUE)
-  
-  if (max_value <= trunc_max_break) {
-    cat("Problem with", item_no, "     ")
-  } else {
-      cat("All good with", item_no, "     ")
+  #if (max_value <= trunc_max_break) {
+  #  cat("Problem with", item_no, "   ")
+  #} else {
+  #    cat("All good with", item_no, "   ")
+  #}
+
+  # Check to see if number of breaks differs between full and truncated
+  trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the truncated breaks
+  full_breaks <- ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the full breaks
+  trunc_num_breaks <- length(trunc_breaks[!is.na(trunc_breaks)]) # Counts the number of truncated breaks, ommiting any NA results
+  full_num_breaks <- length(full_breaks[!is.na(full_breaks)]) # Counts the number of full breaks, ommiting any NA results
+
+  if (trunc_num_breaks != full_num_breaks) {
+      cat("Graph", item_no, "- Full Graph Breaks =", full_num_breaks, ", Trunc Graph Breaks =", trunc_num_breaks, "   ")
+    } 
+
+  if (trunc_num_breaks != full_num_breaks) {
+     full_graph <- df %>%
+      ggplot(aes(x = xlabs, # x-axis variable
+                y = mydata)) + # y-axis variable
+      geom_col() + # for a bar chart
+      labs(x = variable, # x-axis label
+          y = "Number") + # y-axis label
+      scale_y_continuous(limits = c(0, upper_lim), # y axis range: between 0 and upper_lim
+                        expand = expansion(mult = c(0, 0))) + # use the exact limits - don't extend limits with expansion factor
+      my_theme() + # add custom theme created earlier
+      geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
+      force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel 
   }
 
   # save the truncated graph
@@ -125,5 +149,3 @@ tibble(item_no, # use the list of item numbers created previously
   mutate(sentence1 = str_replace_all(sentence1, " x ", " five ")) %>% # replace 'x' placeholder with actual value
   mutate(sentence1 = str_replace_all(sentence1, " y ", paste0(" ", upper_lim, " "))) %>% # replace 'y' placeholder with actual value
   write_csv("list1.csv") # write this dataframe to a .csv file
-
-
