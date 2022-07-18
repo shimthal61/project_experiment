@@ -25,7 +25,7 @@ prop <- rep_len(c(.1, .15, .2), length.out = 40) # the proportion of the upper l
 graph_data <- tibble(item_no, upper_lim, prop) # combine the above vectors into a dataframe
 
 # read in scenarios.csv file
-scenarios <- read_csv("new_scenarios_1.csv")
+scenarios <- read_csv("new_scenarios_6.csv")
 
 # join graph_data with scenarios dataframe, by item number
 graph_data <- graph_data %>%
@@ -42,7 +42,7 @@ make_plots <- function(this_row) {
   item_no <- this_row %>% pull(item_no)
   upper_lim <- this_row %>% pull(upper_lim)
   prop <- this_row %>% pull(prop)
-  seed_no <- this_row %>% pull(seed_no)
+  seed_no <<- this_row %>% pull(seed_no)
   variable <- this_row  %>% pull(variable)
   
   # generate a value for each x-axis category
@@ -50,9 +50,6 @@ make_plots <- function(this_row) {
   mydata <- rnorm(n = length(xlabs), # number of x-axis categories
                   mean = upper_lim*prop, # sampling mean: proportion of the upper limit
                   sd = upper_lim/100) # sampling standard deviation: 
-  
-  # Find max value for each graph
-  max_value <- max(mydata)
 
   # create df - a tibble with one column for x-axis values and another for y-axis values
   df <- tibble(xlabs, mydata, variable) %>%
@@ -70,14 +67,6 @@ make_plots <- function(this_row) {
     my_theme() + # add custom theme created earlier
     geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
-  
-  # save the full graph
-  full_graph %>%
-    ggsave(filename = paste0("graphs/E", item_no, "full.png"), # save inside the 'graphs' folder, a
-           width = 6, # width value
-           height = 5, # height value
-           units = "cm", # units for width and height
-           dpi = 600) # dots per inch
 
   # create the truncated graph
   trunc_graph <- df %>%
@@ -92,41 +81,66 @@ make_plots <- function(this_row) {
     geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
 
-
-  # Check to see if highest labelled gridline is higher than max value:
-
-  # max_value <- max(mydata) # Find max value for each graph
-  # trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks,na.rm=TRUE)
-  
-  #if (max_value <= trunc_max_break) {
-  #  cat("Problem with", item_no, "   ")
-  #} else {
-  #    cat("All good with", item_no, "   ")
-  #}
-
-  # Check to see if number of breaks differs between full and truncated
+  max_value <- max(mydata) # Find max data value for each graph
   trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the truncated breaks
   full_breaks <- ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the full breaks
+  trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)]) # Find the max break value on the truncated graph
   trunc_num_breaks <- length(trunc_breaks[!is.na(trunc_breaks)]) # Counts the number of truncated breaks, ommiting any NA results
   full_num_breaks <- length(full_breaks[!is.na(full_breaks)]) # Counts the number of full breaks, ommiting any NA results
 
-  if (trunc_num_breaks != full_num_breaks) {
-      cat("Graph", item_no, "- Full Graph Breaks =", full_num_breaks, ", Trunc Graph Breaks =", trunc_num_breaks, "   ")
-    } 
+  while (max_value <= trunc_max_break || trunc_num_breaks != full_num_breaks) {
+    seed_no = seed_no + 1
+    set.seed(seed_no)
+    mydata <- rnorm(n = length(xlabs),
+                    mean = upper_lim*prop, 
+                    sd = upper_lim/100)
 
-  if (trunc_num_breaks != full_num_breaks) {
-     full_graph <- df %>%
-      ggplot(aes(x = xlabs, # x-axis variable
-                y = mydata)) + # y-axis variable
-      geom_col() + # for a bar chart
-      labs(x = variable, # x-axis label
-          y = "Number") + # y-axis label
-      scale_y_continuous(limits = c(0, upper_lim), # y axis range: between 0 and upper_lim
-                        expand = expansion(mult = c(0, 0))) + # use the exact limits - don't extend limits with expansion factor
-      my_theme() + # add custom theme created earlier
-      geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
-      force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel 
+    df <- tibble(xlabs, mydata, variable) %>%
+    mutate(across(xlabs, as.character))
+
+    # Create a new full graph
+    full_graph <- df %>%
+    ggplot(aes(x = xlabs, 
+               y = mydata)) +
+    geom_col() + 
+    labs(x = variable, 
+         y = "Number") + 
+    scale_y_continuous(limits = c(0, upper_lim), 
+                       expand = expansion(mult = c(0, 0))) + 
+    my_theme() +
+    geom_hline(yintercept = 0) + 
+    force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm"))
+
+    # create a new truncated graph with attempted same number of breaks
+  trunc_graph <- df %>%
+    ggplot(aes(x = xlabs, 
+               y = mydata)) +
+    geom_col() +
+    labs(x = variable,
+         y = "Number") +
+    scale_y_continuous(expand = expansion(mult = c(0, .05)),
+                        n.breaks = full_num_breaks) + 
+    my_theme() + 
+    geom_hline(yintercept = 0) + 
+    force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm"))
+
+    max_value <- max(mydata)
+    trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks 
+    full_breaks <- ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks
+    trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)]) 
+    trunc_num_breaks <- length(trunc_breaks[!is.na(trunc_breaks)])
+    full_num_breaks <- length(full_breaks[!is.na(full_breaks)])
   }
+
+  cat("Graph", item_no, "seed =", seed_no, "   ")
+
+  # Save the full graph
+  full_graph %>%
+    ggsave(filename = paste0("graphs/E", item_no, "full.png"), # save inside the 'graphs' folder, a
+           width = 6, # width value
+           height = 5, # height value
+           units = "cm", # units for width and height
+           dpi = 600) # dots per inch
 
   # save the truncated graph
   trunc_graph %>%
