@@ -22,10 +22,11 @@ my_theme <- function() {
 item_no <- 1:40 # numerical identifiers for each item
 upper_lim <- rep_len(seq(from = 500, to = 950, by = 50), length.out = 40) # true upper limit for the data
 prop <- rep_len(c(.1, .15, .2), length.out = 40) # the proportion of the upper limit that should be used as the mean when generating data
-graph_data <- tibble(item_no, upper_lim, prop) # combine the above vectors into a dataframe
+seed_no <- 1:40
+graph_data <- tibble(item_no, upper_lim, prop, seed_no) # combine the above vectors into a dataframe
 
 # read in scenarios.csv file
-scenarios <- read_csv("new_scenarios_6.csv")
+scenarios <- read_csv("scenarios.csv")
 
 # join graph_data with scenarios dataframe, by item number
 graph_data <- graph_data %>%
@@ -42,7 +43,7 @@ make_plots <- function(this_row) {
   item_no <- this_row %>% pull(item_no)
   upper_lim <- this_row %>% pull(upper_lim)
   prop <- this_row %>% pull(prop)
-  seed_no <<- this_row %>% pull(seed_no)
+  seed_no <- this_row %>% pull(seed_no)
   variable <- this_row  %>% pull(variable)
   
   # generate a value for each x-axis category
@@ -81,16 +82,17 @@ make_plots <- function(this_row) {
     geom_hline(yintercept = 0) + # add a horizontal line at 0 on the y-axis
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
 
+
   max_value <- max(mydata) # Find max data value for each graph
   trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the truncated breaks
-  full_breaks <- ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the full breaks
   trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)]) # Find the max break value on the truncated graph
-  trunc_num_breaks <- length(trunc_breaks[!is.na(trunc_breaks)]) # Counts the number of truncated breaks, ommiting any NA results
-  full_num_breaks <- length(full_breaks[!is.na(full_breaks)]) # Counts the number of full breaks, ommiting any NA results
 
-  while (max_value <= trunc_max_break || trunc_num_breaks != full_num_breaks) {
-    seed_no = seed_no + 1
+
+  # Create while loop which ensures truncated max value is above highest break
+  while (max_value <= trunc_max_break) {
+    seed_no <- seed_no + 1
     set.seed(seed_no)
+
     mydata <- rnorm(n = length(xlabs),
                     mean = upper_lim*prop, 
                     sd = upper_lim/100)
@@ -98,7 +100,7 @@ make_plots <- function(this_row) {
     df <- tibble(xlabs, mydata, variable) %>%
     mutate(across(xlabs, as.character))
 
-    # Create a new full graph
+    # Create a full graph with new data set
     full_graph <- df %>%
     ggplot(aes(x = xlabs, 
                y = mydata)) +
@@ -111,28 +113,28 @@ make_plots <- function(this_row) {
     geom_hline(yintercept = 0) + 
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm"))
 
-    # create a new truncated graph with attempted same number of breaks
-  trunc_graph <- df %>%
+    # Create a truncated graph with new data set
+    trunc_graph <- df %>%
     ggplot(aes(x = xlabs, 
                y = mydata)) +
     geom_col() +
     labs(x = variable,
          y = "Number") +
-    scale_y_continuous(expand = expansion(mult = c(0, .05)),
-                        n.breaks = full_num_breaks) + 
+    scale_y_continuous(expand = expansion(mult = c(0, .05))) + 
     my_theme() + 
     geom_hline(yintercept = 0) + 
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm"))
 
     max_value <- max(mydata)
-    trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks 
-    full_breaks <- ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks
-    trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)]) 
-    trunc_num_breaks <- length(trunc_breaks[!is.na(trunc_breaks)])
-    full_num_breaks <- length(full_breaks[!is.na(full_breaks)])
+    trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks
+    trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)])
   }
 
-  cat("Graph", item_no, "seed =", seed_no, "   ")
+  # Replace the old seed with the new one
+  
+  
+
+  cat("Item", item_no, "seed =", seed_no, "   ")
 
   # Save the full graph
   full_graph %>%
@@ -150,7 +152,6 @@ make_plots <- function(this_row) {
            units = "cm", # units for width and height
            dpi = 600) # dots per inch
   }
-
 
 # apply the make_plots function to each row of graph_data
 lapply(1:nrow(graph_data), function(i) make_plots(slice(graph_data, i)))
