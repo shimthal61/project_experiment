@@ -1,5 +1,6 @@
 library(tidyverse)
 library(ggh4x)
+library(scales)
 
 # create a 'graphs' folder
 dir.create("graphs")
@@ -20,7 +21,7 @@ my_theme <- function() {
 
 # generate dataframe for data used in graphs
 item_no <- 1:40 # numerical identifiers for each item
-upper_lim <- rep_len(seq(from = 500, to = 950, by = 50), length.out = 40) # true upper limit for the data
+upper_lim <- rep_len(seq(from = 500, to = 1000, by = 100), length.out = 40) # true upper limit for the data
 prop <- rep_len(c(.1, .15, .2), length.out = 40) # the proportion of the upper limit that should be used as the mean when generating data
 seed_no <- 1
 graph_data <- tibble(item_no, upper_lim, prop, seed_no) # combine the above vectors into a dataframe
@@ -72,6 +73,7 @@ make_plots <- function(this_row) {
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
 
   # create the truncated graph
+
   trunc_graph <- df %>%
     ggplot(aes(x = xlabs, # x-axis variable
                y = mydata)) + # y-axis variable
@@ -96,7 +98,7 @@ make_plots <- function(this_row) {
 
   # Create while loop which ensures truncated max value is above highest break
   
-  while (max_value <= trunc_max_break || seed_no %in% graph_data$seed_no[-item_no]) {
+  while (max_value <= trunc_max_break || seed_no %in% graph_data$seed_no[-item_no] || break_diff != 0) {
     seed_no <- seed_no + 1
     set.seed(seed_no)
 
@@ -127,7 +129,8 @@ make_plots <- function(this_row) {
       geom_col() +
       labs(x = variable,
           y = "Number") +
-      scale_y_continuous(expand = expansion(mult = c(0, .05))) +
+      scale_y_continuous(expand = expansion(mult = c(0, .05)),
+                        n.breaks = full_num_breaks) +
       my_theme() + 
       geom_hline(yintercept = 0) + 
       force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm"))
@@ -140,7 +143,7 @@ make_plots <- function(this_row) {
     trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)])
     break_diff <- sum(full_num_breaks - trunc_num_breaks)
 
-    cat("Item", item_no, "seed:", seed_no, "   ")
+    cat("Item", item_no, "break diff =", break_diff, "   ")
     }
 
   # Replace the old seed with the new one
