@@ -1,6 +1,5 @@
 library(tidyverse)
 library(ggh4x)
-library(scales)
 
 # create a 'graphs' folder
 dir.create("graphs")
@@ -21,13 +20,16 @@ my_theme <- function() {
 
 # generate dataframe for data used in graphs
 item_no <- 1:40 # numerical identifiers for each item
-upper_lim <- rep_len(seq(from = 500, to = 1000, by = 100), length.out = 40) # true upper limit for the data
+upper_lim <- rep_len(seq(from = 500, to = 950, by = 50), length.out = 40) # true upper limit for the data
 prop <- rep_len(c(.1, .15, .2), length.out = 40) # the proportion of the upper limit that should be used as the mean when generating data
 seed_no <- 1
-graph_data <- tibble(item_no, upper_lim, prop, seed_no) # combine the above vectors into a dataframe
+max_value <- NA
+trunc_max <- NA
+trunc_diff <- NA
+graph_data <- tibble(item_no, upper_lim, prop, seed_no, max_value, trunc_max, trunc_diff) # combine the above vectors into a dataframe
 
 # read in scenarios.csv file
-scenarios <- read_csv("scenarios_new.csv")
+scenarios <- read_csv("scenarios.csv")
 
 # join graph_data with scenarios dataframe, by item number
 graph_data <- graph_data %>%
@@ -64,8 +66,8 @@ make_plots <- function(this_row) {
     ggplot(aes(x = xlabs, # x-axis variable
                y = mydata)) + # y-axis variable
     geom_col() + # for a bar chart
-    labs(x = variable, # x-axis label
-         y = "Number") + # y-axis label
+    labs(x = variable,
+        y = NULL) + # x-axis label)
     scale_y_continuous(limits = c(0, upper_lim), # y axis range: between 0 and upper_lim
                        expand = expansion(mult = c(0, 0))) + # use the exact limits - don't extend limits with expansion factor
     my_theme() + # add custom theme created earlier
@@ -73,13 +75,12 @@ make_plots <- function(this_row) {
     force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm")) # function from ggh4x, to set the aspect ratio of the plotting panel
 
   # create the truncated graph
-
   trunc_graph <- df %>%
     ggplot(aes(x = xlabs, # x-axis variable
                y = mydata)) + # y-axis variable
     geom_col() + # for a bar chart
-    labs(x = variable, # x-axis label
-         y = "Number") + # y-axis label
+    labs(x = variable,
+        y = NULL) + # x-axis label
     scale_y_continuous(expand = expansion(mult = c(0, .05))) + # don't extend lower limit with expansion factor, but use default expansion factor for the upper limit
     # see default expansion value here: ggplot2:::default_expansion
     my_theme() + # add custom theme created earlier
@@ -90,11 +91,12 @@ make_plots <- function(this_row) {
   max_value <- max(mydata) # Find max data value for each graph
   trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the truncated breaks
   trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)]) # Find the max break value on the truncated graph
+  trunc_diff <- sum(max_value - trunc_max_break) # The numeric difference between the max value and the max break in the trunc graph
 
 
-  # Create while loop which ensures truncated max value is above highest break
+  # Create while loop which ensures truncated max value is above highest break and that seed numbers are all unique
   
-  while (max_value <= trunc_max_break || seed_no %in% graph_data$seed_no[-item_no]) {
+  while (max_value <= sum(trunc_max_break + (max_value/100)) || seed_no %in% graph_data$seed_no[-item_no]) {
     seed_no <- seed_no + 1
     set.seed(seed_no)
 
@@ -110,8 +112,8 @@ make_plots <- function(this_row) {
       ggplot(aes(x = xlabs, 
                 y = mydata)) +
       geom_col() + 
-      labs(x = variable, 
-          y = "Number") + 
+      labs(x = variable,
+          y = NULL) + 
       scale_y_continuous(limits = c(0, upper_lim),
                         expand = expansion(mult = c(0, 0))) + 
       my_theme() +
@@ -124,22 +126,26 @@ make_plots <- function(this_row) {
                 y = mydata)) +
       geom_col() +
       labs(x = variable,
-          y = "Number") +
+          y = NULL) +
       scale_y_continuous(expand = expansion(mult = c(0, .05))) +
       my_theme() + 
       geom_hline(yintercept = 0) + 
       force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm"))
 
+    # Calculate new max data and max break
     max_value <- max(mydata)
     trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks
     trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)])
+    trunc_diff <- sum(max_value - trunc_max_break)
 
-    cat("Item", item_no, ":", seed_no, "   ")
+    #cat("Item", item_no, "seed:", seed_no, "   ")
     }
 
   # Replace the old seed with the new one
-
   graph_data$seed_no[item_no] <<- seed_no
+  graph_data$max_value[item_no] <<- max_value
+  graph_data$trunc_max[item_no] <<- trunc_max_break
+  graph_data$trunc_diff[item_no] <<- trunc_diff
 
   # Save the full graph
   full_graph %>%
@@ -169,3 +175,5 @@ tibble(item_no, # use the list of item numbers created previously
   mutate(sentence1 = str_replace_all(sentence1, " x ", " five ")) %>% # replace 'x' placeholder with actual value
   mutate(sentence1 = str_replace_all(sentence1, " y ", paste0(" ", upper_lim, " "))) %>% # replace 'y' placeholder with actual value
   write_csv("list1.csv") # write this dataframe to a .csv file
+
+# Truncated Item 9 (seed 10) and Truncated Item 23 (seed 24) were hard to differentiate between max value and max break
