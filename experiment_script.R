@@ -88,17 +88,13 @@ make_plots <- function(this_row) {
 
 
   max_value <- max(mydata) # Find max data value for each graph
-  full_breaks <- ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the full breaks
   trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks # Creates a vector with all the truncated breaks
-  trunc_num_breaks <- length(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)]) # Counts the number of breaks in the truncated graph
-  full_num_breaks <- length(ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks[!is.na(full_breaks)])  # Counts the number of breaks in the full graph
   trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)]) # Find the max break value on the truncated graph
-  break_diff <- sum(full_num_breaks - trunc_num_breaks)
 
 
   # Create while loop which ensures truncated max value is above highest break
   
-  while (max_value <= trunc_max_break || seed_no %in% graph_data$seed_no[-item_no] || break_diff != 0) {
+  while (max_value <= trunc_max_break || seed_no %in% graph_data$seed_no[-item_no]) {
     seed_no <- seed_no + 1
     set.seed(seed_no)
 
@@ -129,27 +125,21 @@ make_plots <- function(this_row) {
       geom_col() +
       labs(x = variable,
           y = "Number") +
-      scale_y_continuous(expand = expansion(mult = c(0, .05)),
-                        n.breaks = full_num_breaks) +
+      scale_y_continuous(expand = expansion(mult = c(0, .05))) +
       my_theme() + 
       geom_hline(yintercept = 0) + 
       force_panelsizes(rows = unit(3, "cm"), cols = unit(3.5, "cm"))
 
     max_value <- max(mydata)
-    full_breaks <- ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks
     trunc_breaks <- ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks
-    trunc_num_breaks <- length(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)])
-    full_num_breaks <- length(ggplot_build(full_graph)$layout$panel_params[[1]]$y$breaks[!is.na(full_breaks)])
     trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)])
-    break_diff <- sum(full_num_breaks - trunc_num_breaks)
 
-    cat("Item", item_no, "break diff =", break_diff, "   ")
+    cat("Item", item_no, ":", seed_no, "   ")
     }
 
   # Replace the old seed with the new one
 
   graph_data$seed_no[item_no] <<- seed_no
-  graph_data$breaks[item_no] <<- break_diff
 
   # Save the full graph
   full_graph %>%
