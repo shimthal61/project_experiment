@@ -109,7 +109,7 @@ make_plots <- function(this_row) {
 
     # Create a full graph with new data set
     full_graph <- df %>%
-      ggplot(aes(x = xlabs, 
+      ggplot(aes(x = xlabs,
                 y = mydata)) +
       geom_col() + 
       labs(x = variable,
@@ -138,7 +138,7 @@ make_plots <- function(this_row) {
     trunc_max_break <- max(ggplot_build(trunc_graph)$layout$panel_params[[1]]$y$breaks[!is.na(trunc_breaks)])
     trunc_diff <- sum(max_value - trunc_max_break)
 
-    #cat("Item", item_no, "seed:", seed_no, "   ")
+    cat("Item", item_no, "seed:", seed_no, "   ")
     }
 
   # Replace the old seed with the new one
