@@ -9,9 +9,9 @@ data <- read_csv("anonymised_data.csv")
 experimental_data <- subset(data, select = c(participant_no, item_type, cond, slider.response, item_no))  %>% 
                      filter(!is.na(item_type), !is.na(cond), item_type == "E")  %>% 
                      transmute(condition = factor(cond),
-                               subject = factor(participant_no),
-                               slider_response = slider.response,
-                               item_no = factor(item_no))
+                            subject = factor(participant_no),
+                            slider_response = slider.response,
+                            item_no = factor(item_no))
 
 set.seed(42)
 dplyr::sample_n(experimental_data, 10)
@@ -40,7 +40,8 @@ experimental_data %>%
     stat_summary(fun.data = 'mean_cl_boot', colour = 'black', size = 1) +
     theme_minimal() +
     guides(colour = 'none') +
-    labs(x = "Condition",
+    labs(title = "Effect of bar graph truncation on perceived effect size",
+         x = "Condition",
          y = "Response") +
     theme(text = element_text(size = 20)) +
     scale_x_discrete(labels = c("full" = "full", "trunc" = "truncated"))
@@ -67,12 +68,16 @@ summary(mixed_model_slopes)
 
 mixed_model_slopes_null <- lmer(slider_response ~ (1 + condition | subject) + (1 + condition | item_no), data = experimental_data)
 
-anova(mixed_model, mixed_model_null)
+summary(mixed_model_slopes_null)
 
+anova(mixed_model_slopes, mixed_model_slopes_null)
 
-
+colnames(data)
 
 check_model(mixed_model_slopes)
+
+# Looking at the effect of literacy on the results
+
 
 # Item_type = exp/f/ac
 # q1 - q5 slider - 5 literacy questions (potential covariate)
