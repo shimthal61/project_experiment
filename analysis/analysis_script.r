@@ -1,21 +1,52 @@
 library(tidyverse)
+library(buildmer)
 library(visdat)
 library(performance)
 library(lme4)
 library(lmerTest)
+library(buildmer)
 
 data <- read_csv("anonymised_data.csv")
 
-experimental_data <- subset(data, select = c(participant_no, item_type, cond, slider.response, item_no))  %>% 
-                     filter(!is.na(item_type), !is.na(cond), item_type == "E")  %>% 
+lit_score <- subset(data, select = c(participant_no, q1_slider.response, q2_slider.response, q3_slider.response, q4_slider.response, q5_slider.response))
+
+lit_score <- lit_score  %>% 
+            filter(!is.na(q1_slider.response),
+                   !is.na(q2_slider.response),
+                   !is.na(q3_slider.response),
+                   !is.na(q4_slider.response),
+                   !is.na(q5_slider.response))  %>% 
+            add_column(literacy_score = NA)
+
+avg <- function(q1, q2, q3, q4, q5) {
+    sum((q1 + q2 + q3 + q4 + q5) / 5)
+}
+
+for (row in 1:nrow(lit_score)) {
+    q1 <- lit_score[row, "q1_slider.response"]
+    q2 <- lit_score[row, "q2_slider.response"]
+    q3 <- lit_score[row, "q3_slider.response"]
+    q4 <- lit_score[row, "q4_slider.response"]
+    q5 <- lit_score[row, "q5_slider.response"]
+    literacy_score <- avg(q1, q2, q3, q4, q5)
+
+    lit_score[row, "literacy_score"] <- literacy_score
+}
+
+lit_score <- subset(lit_score, select = c(participant_no, literacy_score))
+
+data <- full_join(data, lit_score, by = "participant_no")
+
+experimental_data <- subset(data, select = c(participant_no, item_type, cond, slider.response, item_no, literacy_score))  %>% 
+                     filter(!is.na(item_type), !is.na(cond), !is.na(literacy_score), item_type == "E")  %>% 
                      transmute(condition = factor(cond),
                             subject = factor(participant_no),
                             slider_response = slider.response,
-                            item_no = factor(item_no))
+                            item_no = factor(item_no),
+                            literacy_score = literacy_score)
 
 set.seed(42)
 dplyr::sample_n(experimental_data, 10)
-str(experimental_data)
 
 # Descriptive stats
 experimental_data  %>% 
@@ -72,13 +103,23 @@ summary(mixed_model_slopes_null)
 
 anova(mixed_model_slopes, mixed_model_slopes_null)
 
-colnames(data)
-
 check_model(mixed_model_slopes)
 
 # Looking at the effect of literacy on the results
 
+literacy_model <- lmer(slider_response ~ condition + literacy_score + (1 + condition | subject) + (1 + condition | item_no),
+                            data = experimental_data)
 
+summary(literacy_model)
+
+# Looking at interaction effects
+
+literacy_model_int <- buildmer(slider_response ~ condition * literacy_score + (1 + condition * literacy_score | subject) + (1 + condition * literacy_score | item_no),
+                            data = experimental_data)
+
+summary(literacy_model_int)
+
+# DV = Magnitude rating
 # Item_type = exp/f/ac
 # q1 - q5 slider - 5 literacy questions (potential covariate)
 # "thisxN" - counting the order they appear in

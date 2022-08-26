@@ -3,6 +3,8 @@ library(tidyverse)
 # Read in the raw dataset
 raw_data <- read_csv("raw_data.csv")
 
+raw_data <- subset(raw_data, select = c(participant, item_type))
+
 tidied_data <- raw_data  %>% 
     mutate(item_type = case_when(item_no <= 32 ~ "E", # Remove the UTF-8 encoding from `item_type`
            item_no > 32 & item_no < 41 ~ "F",
