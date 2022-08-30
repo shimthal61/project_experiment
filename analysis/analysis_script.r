@@ -68,9 +68,9 @@ experimental_data %>%
     ggplot(aes(x = condition, y = slider_response, colour = condition)) +
     geom_violin(width = 0.3) +
     geom_point(alpha = 0.05, position = position_jitter(width = 0.05, seed = 42)) +
-    stat_summary(fun.data = 'mean_cl_boot', colour = 'black', size = 1) +
+    stat_summary(fun.data = "mean_cl_boot", colour = "black", size = 1) +
     theme_minimal() +
-    guides(colour = 'none') +
+    guides(colour = "none") +
     labs(title = "Effect of bar graph truncation on perceived effect size",
          x = "Condition",
          y = "Response") +
