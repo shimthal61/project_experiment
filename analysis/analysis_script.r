@@ -1,10 +1,9 @@
-library(tidyverse)
-library(buildmer)
-library(visdat)
 library(performance)
 library(lme4)
 library(lmerTest)
-library(buildmer)
+library(emmeans)
+library(sjPlot)
+library(tidyverse)
 
 data <- read_csv("anonymised_data.csv")
 
@@ -68,14 +67,42 @@ experimental_data %>%
     ggplot(aes(x = condition, y = slider_response, colour = condition)) +
     geom_violin(width = 0.3) +
     geom_point(alpha = 0.05, position = position_jitter(width = 0.05, seed = 42)) +
-    stat_summary(fun.data = "mean_cl_boot", colour = "black", size = 1) +
+    stat_summary(fun.data = "mean_cl_boot", colour = "black", size = 1.5) +
     theme_minimal() +
+    theme(
+      plot.title = element_text(size = 25, hjust = 0.5, margin = margin(b = 20), face = "bold"),
+      axis.title.x = element_text(size = 20, margin = margin(t = 20)),
+      axis.title.y = element_text(size = 20, margin = margin(r = 20))) +
     guides(colour = "none") +
-    labs(title = "Effect of bar graph truncation on perceived effect size",
-         x = "Condition",
-         y = "Response") +
-    theme(text = element_text(size = 20)) +
-    scale_x_discrete(labels = c("full" = "full", "trunc" = "truncated"))
+    labs(title = "Effect of y-axis Truncation on Perceived Effect Size",
+         x = "Graph",
+         y = "Magnitude Rating") +
+    scale_x_discrete(labels = c("full" = "Full", "trunc" = "Truncated"))
+
+# Simple Visualisation
+
+experimental_data  %>% 
+    ggplot(aes(x = condition, y = slider_response, colour = condition)) +
+    stat_summary(fun.data = "mean_cl_boot", colour = "black", size = 1.5) +
+    theme_minimal() +
+    theme(
+      text = element_text(size = 20),
+      plot.title = element_text(hjust = 0.5, margin = margin(b = 20), face = "bold"),
+      axis.title.x = element_text(margin = margin(t = 20)),
+      axis.title.y = element_text(margin = margin(r = 20))) +
+    labs(title = "Effect of y-axis Truncation on Perceived Effect Size",
+         x = "Graph Condition",
+         y = "Magnitude Rating") +
+    scale_x_discrete(labels = c("full" = "Full", "trunc" = "Truncated")) +
+    scale_y_continuous(breaks = seq(1, 2, by = 0.25),
+                       limits = c(1, 2))
+
+
+experimental_data  %>% 
+    ggplot(aes(x = condition, y = slider_response, colour = condition)) +
+    stat_summary(fun = "mean", colour = "black", size = 1.5) +
+    geom_errorbar()
+    theme_minimal()
 
 # From the plot, it looks as participants rated the effect size as 'larger' in the truncated graphs version
 
@@ -95,6 +122,42 @@ mixed_model_slopes <- lmer(slider_response ~ condition + (1 + condition | subjec
 
 summary(mixed_model_slopes)
 
+emmeans(mixed_model_slopes, pairwise ~ condition)
+
+# Creating a visualisation of estimated marginal means
+
+EMM <- emmeans(mixed_model_slopes, ~ condition, pbkrtest.limit = 4800)  %>% as_tibble()
+
+EMM
+
+EMM  %>%
+    ggplot(aes(x = condition, y = emmean, colour = condition)) +
+    geom_point(size = 3) +
+
+
+r1_c_emm %>%
+  as_tibble() %>%
+  mutate_at(vars("emmean":"asymp.UCL"), as.numeric) %>%
+  ggplot(aes(x = condition, y = emmean, colour = I(hex_conventional), group = 1)) +
+  geom_linerange(aes(ymin = asymp.LCL, ymax = asymp.UCL),
+                 position = position_dodge(width = 0.1),
+                 size = 3, alpha = 0.5) +
+  geom_point(position = position_dodge(width = 0.1), size = 3) +
+  geom_line(position = position_dodge(width = 0.1),
+            size = 2) +
+  lims(y = c(-1.8, 2)) +
+  labs(y = "Estimated\nMarginal Mean",
+       x = "Physical Position",
+       title = "Experiment 1:\nRatings of Data Points' Magnitudes (Modeled)") +
+  scale_x_discrete(labels = c('Low','High'),
+                   limits = c("lo", "hi")) +
+  theme_minimal(base_size = 18) +
+  theme(legend.position = "none",
+        panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        plot.title = element_text(size=18, hjust = 0.5))
+
+
 # Let's use a LRT to determine whether a model with our fixed effect is better than one withot
 
 mixed_model_slopes_null <- lmer(slider_response ~ (1 + condition | subject) + (1 + condition | item_no), data = experimental_data)
@@ -112,12 +175,18 @@ literacy_model <- lmer(slider_response ~ condition + literacy_score + (1 + condi
 
 summary(literacy_model)
 
+emmeans(literacy_model, pairwise ~ condition, pbkrtest.limit = 4800)
+
 # Looking at interaction effects
 
 literacy_model_int <- buildmer(slider_response ~ condition * literacy_score + (1 + condition * literacy_score | subject) + (1 + condition * literacy_score | item_no),
                             data = experimental_data)
 
-summary(literacy_model_int)
+citation(package = "lme4")
+
+EMM
+
+tab_model(mixed_model_slopes, show.df = TRUE)
 
 # DV = Magnitude rating
 # Item_type = exp/f/ac
