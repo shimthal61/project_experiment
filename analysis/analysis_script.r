@@ -1,9 +1,11 @@
+library(tidyverse)
 library(performance)
 library(lme4)
 library(lmerTest)
 library(emmeans)
+library(buildmer)
 library(sjPlot)
-library(tidyverse)
+library(pbkrtest)
 
 data <- read_csv("anonymised_data.csv")
 
@@ -44,13 +46,18 @@ experimental_data <- subset(data, select = c(participant_no, item_type, cond, sl
                             item_no = factor(item_no),
                             literacy_score = literacy_score)
 
+experimental_data  %>% 
+  summarise(mean = mean(literacy_score), sd = sd(literacy_score))
+
 set.seed(42)
 dplyr::sample_n(experimental_data, 10)
 
+unique(experimental_data$subject)
+
 # Descriptive stats
-experimental_data  %>% 
+(summary <- experimental_data  %>% 
     group_by(condition)  %>% 
-    summarise(count = n(), mean = mean(slider_response), sd = sd(slider_response))
+    summarise(count = n(), mean = mean(slider_response), sd = sd(slider_response)))
 
 # Density Histogram
 experimental_data  %>% 
@@ -62,7 +69,7 @@ experimental_data  %>%
     geom_density(alpha = .5, fill = "#FF6666") +
     theme_minimal()
 
-# Visualisation
+# Violin Plot
 experimental_data %>% 
     ggplot(aes(x = condition, y = slider_response, colour = condition)) +
     geom_violin(width = 0.3) +
@@ -79,30 +86,6 @@ experimental_data %>%
          y = "Magnitude Rating") +
     scale_x_discrete(labels = c("full" = "Full", "trunc" = "Truncated"))
 
-# Simple Visualisation
-
-experimental_data  %>% 
-    ggplot(aes(x = condition, y = slider_response, colour = condition)) +
-    stat_summary(fun.data = "mean_cl_boot", colour = "black", size = 1.5) +
-    theme_minimal() +
-    theme(
-      text = element_text(size = 20),
-      plot.title = element_text(hjust = 0.5, margin = margin(b = 20), face = "bold"),
-      axis.title.x = element_text(margin = margin(t = 20)),
-      axis.title.y = element_text(margin = margin(r = 20))) +
-    labs(title = "Effect of y-axis Truncation on Perceived Effect Size",
-         x = "Graph Condition",
-         y = "Magnitude Rating") +
-    scale_x_discrete(labels = c("full" = "Full", "trunc" = "Truncated")) +
-    scale_y_continuous(breaks = seq(1, 2, by = 0.25),
-                       limits = c(1, 2))
-
-
-experimental_data  %>% 
-    ggplot(aes(x = condition, y = slider_response, colour = condition)) +
-    stat_summary(fun = "mean", colour = "black", size = 1.5) +
-    geom_errorbar()
-    theme_minimal()
 
 # From the plot, it looks as participants rated the effect size as 'larger' in the truncated graphs version
 
@@ -124,39 +107,66 @@ summary(mixed_model_slopes)
 
 emmeans(mixed_model_slopes, pairwise ~ condition)
 
+tab_model(mixed_model_slopes, show.df = TRUE)
+
 # Creating a visualisation of estimated marginal means
 
-EMM <- emmeans(mixed_model_slopes, ~ condition, pbkrtest.limit = 4800)  %>% as_tibble()
+(EMM <- emmeans(mixed_model_slopes, ~ condition, pbkrtest.limit = 4800)  %>% as_tibble())
 
 EMM
 
-EMM  %>%
-    ggplot(aes(x = condition, y = emmean, colour = condition)) +
-    geom_point(size = 3) +
+# Visualisation for emmeans
 
+(EMM_vis <- EMM  %>%
+  ggplot(aes(x = condition, y = emmean, ymin = lower.CL, ymax = upper.CL)) +
+  geom_point(size = 6, colour = '#FF6133', alpha = 0.7) +
+  geom_line(aes(group = 1), colour = '#FF6133', size = 2.5, alpha = 0.7) +
+  geom_errorbar(width = 0.1, size = 3, alpha = 0.4, colour = '#FF6133') +
+  guides(colour = 'none') +
+  scale_y_continuous(breaks = seq(1.15, 1.50, by = 0.1),
+                     limits = c(1.15, 1.50)) +
+  labs(y = "Estimated \nMarginal Mean",
+       x = "Y-axis Range",
+       title = "Ratings of Bar Graphs' Magnitudes") +
+  scale_x_discrete(labels = c("full" = "Full", "trunc" = "Truncated")) +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 25),
+    plot.title = element_text(hjust = 0.5, margin = margin(b = -150), face = "bold"),
+    axis.text.x = element_text(size = 28, margin = margin(t = -100)),
+    axis.text.y = element_text(margin = margin(r = -150)),
+    axis.title.y = element_text(size = 30, face = "bold"),
+    axis.title.x = element_text(size = 30, face = "bold", margin = margin(b = 30)),
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(),
+    panel.background = element_rect(fill = "white", colour = "white")))
 
-r1_c_emm %>%
-  as_tibble() %>%
-  mutate_at(vars("emmean":"asymp.UCL"), as.numeric) %>%
-  ggplot(aes(x = condition, y = emmean, colour = I(hex_conventional), group = 1)) +
-  geom_linerange(aes(ymin = asymp.LCL, ymax = asymp.UCL),
-                 position = position_dodge(width = 0.1),
-                 size = 3, alpha = 0.5) +
-  geom_point(position = position_dodge(width = 0.1), size = 3) +
-  geom_line(position = position_dodge(width = 0.1),
-            size = 2) +
-  lims(y = c(-1.8, 2)) +
-  labs(y = "Estimated\nMarginal Mean",
-       x = "Physical Position",
-       title = "Experiment 1:\nRatings of Data Points' Magnitudes (Modeled)") +
-  scale_x_discrete(labels = c('Low','High'),
-                   limits = c("lo", "hi")) +
-  theme_minimal(base_size = 18) +
-  theme(legend.position = "none",
-        panel.grid = element_blank(),
-        axis.text.y = element_blank(),
-        plot.title = element_text(size=18, hjust = 0.5))
+ggsave("EMM_vis.png", bg = "white")
 
+# No margin
+
+(EMM_vis <- EMM  %>%
+    ggplot(aes(x = condition, y = emmean, ymin = lower.CL, ymax = upper.CL)) +
+    geom_point(size = 6, colour = '#FF6133', alpha = 0.7) +
+    geom_line(aes(group = 1), colour = '#FF6133', size = 2.5, alpha = 0.7) +
+    geom_errorbar(width = 0.1, size = 3, alpha = 0.4, colour = '#FF6133') +
+    guides(colour = 'none') +
+    scale_y_continuous(breaks = seq(1.15, 1.50, by = 0.1),
+                       limits = c(1.15, 1.50)) +
+    labs(y = "Estimated \nMarginal Mean",
+         x = "Y-axis Range",
+         title = "Ratings of Bar Graphs' Magnitudes") +
+    scale_x_discrete(labels = c("full" = "Full", "trunc" = "Truncated")) +
+    theme_minimal() +
+    theme(
+      text = element_text(size = 25),
+      plot.title = element_text(hjust = 0.5, margin = margin(b = 10), face = "bold"),
+      axis.text.x = element_text(size = 28),
+      axis.title.y = element_text(margin = margin(r = 20), size = 30, face = "bold"),
+      axis.title.x = element_text(size = 30, face = "bold", margin = margin(b = 5)),
+      panel.grid.major = element_blank(), 
+      panel.grid.minor = element_line(size = 1, colour = "grey"),
+      panel.background = element_rect(fill = "white", colour = "white")))
 
 # Let's use a LRT to determine whether a model with our fixed effect is better than one withot
 
@@ -179,14 +189,33 @@ emmeans(literacy_model, pairwise ~ condition, pbkrtest.limit = 4800)
 
 # Looking at interaction effects
 
+experimental_data  %>% 
+  group_by(condition, literacy_score)  %>% 
+  summarise(mean = mean(slider_response), sd = sd(slider_response))  %>% 
+  arrange(mean)
+
 literacy_model_int <- buildmer(slider_response ~ condition * literacy_score + (1 + condition * literacy_score | subject) + (1 + condition * literacy_score | item_no),
                             data = experimental_data)
 
-citation(package = "lme4")
+literacy_model_int <- lm(slider_response ~ condition * literacy_score, data = experimental_data)
 
-EMM
+summary(literacy_model_int)
+
+emmeans(literacy_model_int, pairwise ~ condition*literacy_score, adjust = "none")
+
+check_model(literacy_model_int)
+
+citation(package = "ggplot2")
 
 tab_model(mixed_model_slopes, show.df = TRUE)
+
+
+comments <- data  %>% 
+  select(participant_no, textbox.text)  %>% 
+  filter(!is.na(textbox.text),
+         !is.na(participant_no))
+
+write.csv(comments, file = "comments.csv")
 
 # DV = Magnitude rating
 # Item_type = exp/f/ac
@@ -205,3 +234,5 @@ tab_model(mixed_model_slopes, show.df = TRUE)
 # "session" - someone completed twice ("reference by their session number")
 
 # Git Lab 
+
+

@@ -3,8 +3,6 @@ library(tidyverse)
 # Read in the raw dataset
 raw_data <- read_csv("raw_data.csv")
 
-raw_data <- subset(raw_data, select = c(participant, item_type))
-
 tidied_data <- raw_data  %>% 
     mutate(item_type = case_when(item_no <= 32 ~ "E", # Remove the UTF-8 encoding from `item_type`
            item_no > 32 & item_no < 41 ~ "F",
@@ -15,7 +13,7 @@ tidied_data <- raw_data  %>%
 # Create a new tibble with salient attention check features, and create new column called attention pass
 attention_check <- subset(tidied_data, select = c(participant, slider.response, correct_response))  %>%  # Pulls 3 columns from tidied_data
                    filter(!is.na(slider.response), !is.na(correct_response))  %>% # Removes all the NA values
-                   add_column(attention_pass = NA) # Creates new column 
+                   add_column(attention_pass = NA, age = NA) # Creates new column 
 
 # Run a for loop which works out the difference between the expected answer and the actual answer
 for (row in 1:nrow(attention_check)) { # Iterates over every row 
@@ -60,6 +58,37 @@ unique_data <- tidied_data  %>%
 anonymised_data <- full_join(tidied_data, unique_data, by = "participant")  %>% 
                     select(-participant)
 
+# Set labels for gender responses
+edu_labels <- set_names(c('No formal qualications',
+                          'Secondary education (e.g. GED/GCSE)',
+                          'High school diploma/A-levels',
+                          'Technical/community college',
+                          'Undergraduate degree (BA/BSc/other)',
+                          'Graduate degree (MA/MSc/MPhil/other)',
+                          'Doctorate degree (PhD/other)',
+                          'Don\'t know / not applicable'),
+                        seq(8,1,-1))
+
+gender_labels <- set_names(c("Prefer not to say", 
+                             "In another way:",
+                             "Non-binary", 
+                             "Man", 
+                             "Woman"),
+                           1:5)
+
+
+
+
+sum((5 / 150) * 100) # binary - 3.34%
+sum((86 / 150) * 100) # men - 57.34%
+sum((59 / 150) * 100) # women - 39.34%
+
+
+
+# Calculate the mean age
+anonymised_data  %>% 
+    filter(!is.na(ageResp.text))  %>% 
+    summarise(mean = mean(ageResp.text), sd = sd(ageResp.text))
 
 # Save the dataset to a csv file
 write.csv(anonymised_data, "C:\\Users\\harve\\Documents\\RStudio Projects\\project_experiment\\project_experiment\\analysis\\anonymised_data.csv", row.names = FALSE)
